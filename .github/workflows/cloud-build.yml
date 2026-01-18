@@ -1,11 +1,11 @@
-name: Ultimate Full Build
-on: workflow_dispatch
+name: Ultimate Cloud Build
+on: workflow_dispatch # 支持手动点击按钮触发编译
 
 jobs:
   build:
     name: Build for ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
-    # 即使一个平台失败，其他平台也继续执行
+    # 即使其中一个平台失败，其他平台也会继续完成，互不干扰
     continue-on-error: true 
     strategy:
       fail-fast: false
@@ -22,9 +22,11 @@ jobs:
             build_cmd: flutter build ios --release --no-codesign
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
@@ -37,8 +39,8 @@ jobs:
       - name: Fix Android Environment
         if: matrix.platform == 'Android'
         run: |
-          mkdir -p simple_live_app/android/app
-          # 在正确的位置创建 key.properties
+          # 强行注入 key.properties 防止 build.gradle.kts 报错
+          mkdir -p simple_live_app/android
           echo "storePassword=password" > simple_live_app/android/key.properties
           echo "keyPassword=password" >> simple_live_app/android/key.properties
           echo "keyAlias=key" >> simple_live_app/android/key.properties
@@ -54,8 +56,10 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SimpleLive-${{ matrix.platform }}
+          name: SimpleLive-${{ matrix.platform }}-Package
+          # 使用 ** 通配符递归搜索，自动适配 x64 或其他路径
           path: |
-            simple_live_app/build/windows/runner/Release/
+            simple_live_app/build/windows/**/Release/
             simple_live_app/build/app/outputs/flutter-apk/*.apk
             simple_live_app/build/ios/iphoneos/*.app
+          if-no-files-found: error
