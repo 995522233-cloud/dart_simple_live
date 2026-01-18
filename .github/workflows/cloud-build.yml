@@ -1,0 +1,22 @@
+name: Manual Build Windows
+on: workflow_dispatch # 这会让 Actions 页面多出一个手动运行按钮
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version: '3.10.7' # 指定你在本地测试成功的版本
+      - name: Build
+        run: |
+          cd simple_live_app
+          flutter pub get
+          flutter build windows --release
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpleLive-Windows-Package
+          path: simple_live_app/build/windows/runner/Release/
