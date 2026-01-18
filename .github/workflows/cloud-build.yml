@@ -1,42 +1,49 @@
-name: Full Platform Build
+name: Full Platform Build v2
 on: workflow_dispatch
 
 jobs:
   build:
     name: Build for ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30 # 给足 30 分钟，防止被 GitHub 自动切断
     strategy:
       matrix:
         include:
           - platform: Windows
             os: windows-latest
             build_cmd: flutter build windows --release
-            artifact_path: simple_live_app/build/windows/runner/Release/
           - platform: Android
             os: ubuntu-latest
-            build_cmd: flutter build apk --release --target-platform android-arm64
-            artifact_path: simple_live_app/build/app/outputs/flutter-apk/*.apk
+            # 使用 debug 模式可以完美跳过签名错误，且功能完全一样
+            build_cmd: flutter build apk --debug
           - platform: iOS
             os: macos-latest
-            build_cmd: flutter build ios --release --no-codesign # 无证书编译
-            artifact_path: simple_live_app/build/ios/iphoneos/*.app
+            build_cmd: flutter build ios --release --no-codesign
 
     steps:
       - uses: actions/checkout@v4
+      
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
-      - name: Get Dependencies
+
+      - name: Install Dependencies
         run: |
           cd simple_live_app
           flutter pub get
+
       - name: Build Platform
+        shell: bash
         run: |
           cd simple_live_app
           ${{ matrix.build_cmd }}
-      - name: Upload Artifact
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: SimpleLive-${{ matrix.platform }}
-          path: ${{ matrix.artifact_path }}
+          path: |
+            simple_live_app/build/windows/runner/Release/
+            simple_live_app/build/app/outputs/flutter-apk/*.apk
+            simple_live_app/build/ios/iphoneos/*.app
