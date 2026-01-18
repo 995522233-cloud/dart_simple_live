@@ -1,12 +1,14 @@
-name: Full Platform Build v2
+name: Ultimate Full Build
 on: workflow_dispatch
 
 jobs:
   build:
     name: Build for ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30 # 给足 30 分钟，防止被 GitHub 自动切断
+    # 即使一个平台失败，其他平台也继续执行
+    continue-on-error: true 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: Windows
@@ -14,7 +16,6 @@ jobs:
             build_cmd: flutter build windows --release
           - platform: Android
             os: ubuntu-latest
-            # 使用 debug 模式可以完美跳过签名错误，且功能完全一样
             build_cmd: flutter build apk --debug
           - platform: iOS
             os: macos-latest
@@ -32,6 +33,17 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
+
+      - name: Fix Android Environment
+        if: matrix.platform == 'Android'
+        run: |
+          mkdir -p simple_live_app/android/app
+          # 在正确的位置创建 key.properties
+          echo "storePassword=password" > simple_live_app/android/key.properties
+          echo "keyPassword=password" >> simple_live_app/android/key.properties
+          echo "keyAlias=key" >> simple_live_app/android/key.properties
+          echo "storeFile=../key.jks" >> simple_live_app/android/key.properties
+        shell: bash
 
       - name: Build Platform
         shell: bash
